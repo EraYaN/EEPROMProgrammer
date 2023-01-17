@@ -182,13 +182,13 @@ def process_buffer(ser, current_state):
             time.sleep(0.1)  # booting is slow wait for a bit
         elif state == PROGRAMMING:
             #print("State PROGRAMMING")
-            if file_pos >= len(file_contents):
+            if file_pos >= config["EEPROM_SIZE"]:
                 print(f"Done programming at address {file_pos:06X}")
                 command = struct.pack(config["COMMAND_FORMAT"],START_VERIFYING,state, file_pos, b'\x00' * config['BLOCK_SIZE'])
                 ser.write(command)
                 new_state=VERIFYING
             else:
-                command = struct.pack(config["COMMAND_FORMAT"],PAYLOAD,state,file_pos,file_contents[file_pos:min(file_pos+config["BLOCK_SIZE"],len(file_contents))])
+                command = struct.pack(config["COMMAND_FORMAT"],PAYLOAD,state,file_pos,file_contents[file_pos:min(file_pos+config["BLOCK_SIZE"],config["EEPROM_SIZE"])])
                 if file_pos%4096==0:
                     print(f"TXD until {file_pos:06X}")
                 ser.write(command)
@@ -224,7 +224,7 @@ def process_buffer(ser, current_state):
                         raise ValueError(f"Address mismatch got {output[2]} expected {verify_pos}")
                     
                     # handle output and verify
-                    original_data = file_contents[verify_pos:min(verify_pos+config["BLOCK_SIZE"],len(file_contents))]
+                    original_data = file_contents[verify_pos:min(verify_pos+config["BLOCK_SIZE"],config["EEPROM_SIZE"])]
                     verification_data = output[3]
 
                     for idx in range(0,len(original_data)):
@@ -232,7 +232,7 @@ def process_buffer(ser, current_state):
                             print(f"Error at idx {verify_pos+idx:06X} got {verification_data[idx]:02X} expected {original_data[idx]:02X}")
 
                     # send ack 
-                    command = struct.pack(config["COMMAND_FORMAT"],ACK,state,verify_pos,output[3])
+                    command = struct.pack(config["COMMAND_FORMAT"],ACK,state,verify_pos,verification_data)
                     ser.write(command)
                     verify_pos+=config["BLOCK_SIZE"]
                     if verify_pos%4096==0:
@@ -250,7 +250,7 @@ def process_buffer(ser, current_state):
     return new_state
 
 start_time = time.time()
-with serial.Serial("COM7", 115200, timeout=2) as ser:
+with serial.Serial("COM13", 115200, timeout=2) as ser:
     iter = 0
     
     while iter < 100:
