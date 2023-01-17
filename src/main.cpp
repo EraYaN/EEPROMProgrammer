@@ -34,6 +34,7 @@ struct Config
 {
     uint16_t block_size;
     uint16_t command_size;
+    uint16_t eeprom_size;
     uint16_t type_offset;
     uint16_t state_offset;
     uint16_t address_offset;
@@ -64,6 +65,7 @@ void setup()
         .config = {
             .block_size = BLOCK_SIZE,
             .command_size = (uint16_t)sizeof(Command),
+            .eeprom_size = (uint16_t)EEPROM_SIZE,
             .type_offset = (uint16_t)offsetof(Command, type),
             .state_offset = (uint16_t)offsetof(Command, state),
             .address_offset = (uint16_t)offsetof(Command, address),
@@ -85,6 +87,9 @@ void setup()
     Serial.println("ENDBOOT");
 }
 
+uint8_t readValue(uint32_t addr){
+    return addr % 256;
+}
 
 uint32_t verify_address = 0;
 unsigned int buf_pos = 0;
@@ -160,7 +165,7 @@ void loop()
                 for(int i=0;i<BLOCK_SIZE;i++){
                     //read from eeprom
                     //TODO hookup eeprom
-                    verify_command.command.payload[i] = i; // DEMO data
+                    verify_command.command.payload[i] = 0; // DEMO data
                 }
                 write_command(verify_command);
                 state = VERIFYING_WAITING_FOR_ACK;

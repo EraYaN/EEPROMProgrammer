@@ -7,11 +7,12 @@ import collections
 
 MAX_RETRIES = 2000
 
-CONFIG_LENGTH = 12
+CONFIG_LENGTH = 14
 
 config = {
     "BLOCK_SIZE": None,
     "COMMAND_SIZE": None,
+    "EEPROM_SIZE": None,
     "TYPE_OFFSET": None,
     "STATE_OFFSET": None,
     "ADDRESS_OFFSET": None,
@@ -91,7 +92,11 @@ def process_rx(input):
     #print("Section: ", input)
     #print("Buffer:", bytes(rx_buffer[0:4]))
 
-file_contents = random.randbytes(32000)
+file_contents = b''
+
+with open("a.bin","rb") as rom_file:
+    file_contents = rom_file.read()
+
 file_pos = 0
 verify_pos = 0
 
@@ -128,10 +133,11 @@ def process_buffer(ser, current_state):
 
                 config["BLOCK_SIZE"] = output[0]
                 config["COMMAND_SIZE"] = output[1]
-                config["TYPE_OFFSET"] = output[2]
-                config["STATE_OFFSET"] = output[3]
-                config["ADDRESS_OFFSET"] = output[4]
-                config["PAYLOAD_OFFSET"] = output[5]
+                config["EEPROM_SIZE"] = output[2]
+                config["TYPE_OFFSET"] = output[3]
+                config["STATE_OFFSET"] = output[4]
+                config["ADDRESS_OFFSET"] = output[5]
+                config["PAYLOAD_OFFSET"] = output[6]
 
                 negoffset = 0  # becasue the format collapses
                 format = "x" * config["COMMAND_SIZE"]
@@ -182,7 +188,7 @@ def process_buffer(ser, current_state):
                 ser.write(command)
                 new_state=VERIFYING
             else:
-                command = struct.pack(config["COMMAND_FORMAT"],PAYLOAD,state,file_pos,file_contents[file_pos:max(file_pos+config["BLOCK_SIZE"],len(file_contents))-1])
+                command = struct.pack(config["COMMAND_FORMAT"],PAYLOAD,state,file_pos,file_contents[file_pos:min(file_pos+config["BLOCK_SIZE"],len(file_contents))])
                 if file_pos%4096==0:
                     print(f"TXD until {file_pos:06X}")
                 ser.write(command)
@@ -218,7 +224,13 @@ def process_buffer(ser, current_state):
                         raise ValueError(f"Address mismatch got {output[2]} expected {verify_pos}")
                     
                     # handle output and verify
-                    
+                    original_data = file_contents[verify_pos:min(verify_pos+config["BLOCK_SIZE"],len(file_contents))]
+                    verification_data = output[3]
+
+                    for idx in range(0,len(original_data)):
+                        if verification_data[idx] != original_data[idx]:
+                            print(f"Error at idx {verify_pos+idx:06X} got {verification_data[idx]:02X} expected {original_data[idx]:02X}")
+
                     # send ack 
                     command = struct.pack(config["COMMAND_FORMAT"],ACK,state,verify_pos,output[3])
                     ser.write(command)
