@@ -110,6 +110,7 @@ void loop()
         buf_pos = 0;
         if(state==IDLE){
             if(cu.command.type==START_PROGRAMMING){
+                SetPoortA_outputs();
                 state=PROGRAMMING;
                 // SETUP Programming state here
                 digitalWrite(13, HIGH);
@@ -123,6 +124,7 @@ void loop()
                     //TODO hookup eeprom
                     // address is 
                     // set EEPROM byte (addr,cu.command.payload[i]);
+                    writeValue(addr, cu.command.payload[i]);
                 }
                 // Send ack
                 CommandUnion ack_command;
@@ -133,6 +135,7 @@ void loop()
                 
                 write_command(ack_command);
             } else if(cu.command.type==START_VERIFYING){
+                SetPoortA_inputs();
                 // SETUP Verifying state here
                 verify_address = 0;
                 digitalWrite(13, HIGH);
@@ -165,7 +168,7 @@ void loop()
                 for(int i=0;i<BLOCK_SIZE;i++){
                     //read from eeprom
                     //TODO hookup eeprom
-                    verify_command.command.payload[i] = 0; // DEMO data
+                    verify_command.command.payload[i] = readValue(verify_command.command.address+i);  // DEMO data                
                 }
                 write_command(verify_command);
                 state = VERIFYING_WAITING_FOR_ACK;
@@ -201,3 +204,62 @@ void loop()
         }
     }
 }
+
+
+void SetPoortA_outputs() {
+  DDRA = B11111111;        // set portA as outputs
+  delayMicroseconds(700);  // we need a little delay to switch from input to output (at least 500 microseconds)
+}
+
+void SetPoortA_inputs() {
+  PORTA = 0;
+  DDRA = B00000000;        // set portA as Inputs
+  delayMicroseconds(700);  // we need a little delay to switch from input to output (at least 500 microseconds)
+}
+
+
+void writeValue(int adr, byte val) {
+  digitalWrite(E_CE, LOW);
+  digitalWrite(E_WE, HIGH);
+  digitalWrite(E_OE, HIGH);  // output disable
+  delayMicroseconds(1);
+
+  // now put the address and data on the bus
+  PORTA = val;            // this is the DATA
+  PORTC = lowByte(adr);   // lower byte of the address (first 8 bits)
+  PORTL = highByte(adr);  // upper byte of the address (only 5 bits are used, the address is a 13 bit number)
+  delayMicroseconds(1);
+  delay(10);
+
+
+  digitalWrite(E_CE, LOW);  //  |CE goes LOW  // Chip enable
+  digitalWrite(E_WE, LOW);  //  |WE goes LOW  // Write enable
+  delayMicroseconds(1);
+  digitalWrite(E_WE, HIGH);  //  |WE goes HIGH // Write disable
+  digitalWrite(E_CE, HIGH);  //  |CE goes HIGH // Chip disable
+  delayMicroseconds(1);
+}
+
+byte readValue(int adr) {
+  byte r = 0;
+  digitalWrite(E_WE, HIGH);  // disable write mode
+  digitalWrite(E_CE, HIGH);
+  digitalWrite(E_OE, HIGH);
+  delayMicroseconds(1);
+
+  PORTC = lowByte(adr);   // lower byte of the address (first 8 bits)
+  PORTL = highByte(adr);  // upper byte of the address (only 5 bits are used, the address is a 13 bit number)
+
+  digitalWrite(E_CE, LOW);
+  digitalWrite(E_OE, LOW);
+  delayMicroseconds(1);
+
+
+  // read the data
+  r = PINA;
+
+  digitalWrite(E_CE, HIGH);
+  digitalWrite(E_OE, HIGH);
+  return r;
+}
+
