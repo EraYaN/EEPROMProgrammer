@@ -4,23 +4,28 @@
 
 
 void SetPoortA_outputs() {
+  digitalWrite(E_WE, HIGH);  // disable write mode
+  digitalWrite(E_CE, HIGH);
+  digitalWrite(E_OE, HIGH);
   DDRA = B11111111;        // set portA as outputs
   delayMicroseconds(1000);  // we need a little delay to switch from input to output (at least 500 microseconds)
 }
 
 void SetPoortA_inputs() {
-  PORTA = 0;
-  DDRA = B00000000;        // set portA as Inputs
   digitalWrite(E_WE, HIGH);  // disable write mode
   digitalWrite(E_CE, HIGH);
   digitalWrite(E_OE, HIGH);
-  delayMicroseconds(1000);  // we need a little delay to switch from input to output (at least 500 microseconds)
+  PORTA = 0;
+  delay(1);
+  DDRA = B00000000;        // set portA as Inputs
+   delayMicroseconds(1000);  // we need a little delay to switch from input to output (at least 500 microseconds)
 
 }
 
 void writePage(uint32_t start_addr, uint8_t data[PAGE_SIZE]){
     // set up
     digitalWrite(E_OE, HIGH);
+    digitalWrite(E_CE, LOW);
 
     delayMicroseconds(1);
     
@@ -34,14 +39,11 @@ void writePage(uint32_t start_addr, uint8_t data[PAGE_SIZE]){
         PORTC = (uint8_t)(addr & 0xFF);
         //set data
         PORTA = data[i];            // this is the DATA
-        digitalWrite(E_CE, LOW);
-        digitalWrite(E_WE, LOW);
-        delayMicroseconds(50);
-        digitalWrite(E_CE, HIGH);
-        digitalWrite(E_WE, HIGH);
-        delayMicroseconds(50);
+        PORTB &= 0xfb; //digitalWrite(E_WE, LOW);
+        PORTB |= 0x04; //digitalWrite(E_WE, HIGH);
+        delayMicroseconds(5);
     }
-    delayMicroseconds(5000);
+    delayMicroseconds(10000);
 }
 
 

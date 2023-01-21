@@ -62,6 +62,18 @@ void setup()
     digitalWrite(13, LOW);
     Serial.println("BOOT");
     Serial.println("EEPROM test title v1");
+    PORTB = B11111111;
+    pinMode(E_WE, OUTPUT);
+    pinMode(E_CE, OUTPUT); 
+    pinMode(E_OE, OUTPUT); 
+    PORTB = B11111111;
+
+    DDRC = B11111111;
+    PORTC = B00000000;
+    DDRL = B11111111;
+    PORTL = B00000000;
+
+
 
     ConfigUnion config = {
         .config = {
